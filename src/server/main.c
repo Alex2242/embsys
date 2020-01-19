@@ -13,26 +13,9 @@
 
 
 // declare prototype of daemon which has no header (internal)
-void daemon();
+void runDaemon(int port);
 
-/**
-SIGINT interput handler
-*/
-void StopContCapture(int sig_id) {
-	printf("stoping continuous capture\n");
-	captureUninit();
-}
 
-void InstallSIGINTHandler() {
-	struct sigaction sa;
-    memset(&sa, 0, sizeof(sa));
-	
-	sa.sa_handler = StopContCapture;
-
-	if (sigaction(SIGINT, &sa, 0) != 0) {
-		fprintf(stderr, "could not install SIGINT handler, continuous capture disabled");
-	}
-}
 
 /**
 	print usage information
@@ -42,6 +25,8 @@ static void usage(FILE* fp, int argc, char** argv) {
 		"Usage: %s [options]\n\n"
 		"Options:\n"
 		"-d | --device name   Video device name [/dev/video0]\n"
+		"-s | --server		  Run the video capture daemon\n"
+		"-p | --port		  Port for clients to connect\n"
 		"-h | --help          Print this message\n"
 		"-o | --output        Set JPEG output filename\n"
 		"-q | --quality       Set JPEG quality (0-100)\n"
@@ -57,12 +42,14 @@ static void usage(FILE* fp, int argc, char** argv) {
 		argv[0]);
 	}
 
-static const char short_options [] = "d:ho:q:mruW:H:I:vc";
+static const char short_options [] = "sp:d:ho:q:mruW:H:I:vc";
 
 static const struct option
 long_options [] = {
 	{ "device",     required_argument,      NULL,           'd' },
 	{ "help",       no_argument,            NULL,           'h' },
+	{ "server",     no_argument,            NULL,           's' },
+	{ "port",     	required_argument,		NULL,           'p' },
 	{ "output",     required_argument,      NULL,           'o' },
 	{ "quality",    required_argument,      NULL,           'q' },
 	{ "mmap",       no_argument,            NULL,           'm' },
@@ -92,6 +79,9 @@ int main(int argc, char **argv) {
         .continuous = false
     };
 
+	bool runServer = false;
+	int port = PORT;
+
 	for (;;) {
 		int index;
 		int c = 0;
@@ -104,10 +94,20 @@ int main(int argc, char **argv) {
 
 		switch (c) {
 			case 0: /* getopt_long() flag */
+				usage(stdout, argc, argv);
+				exit(EXIT_SUCCESS);
 				break;
 
 			case 'd':
 				co.deviceName = optarg;
+				break;
+
+			case 'p':
+				port = atoi(optarg);
+				break;
+
+			case 's':
+				runServer = true;
 				break;
 
 			case 'h':
@@ -175,7 +175,10 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	daemon();	
+	if (runServer) {
+		printf("info: starting server");
+		runDaemon(port);	
+	}
 
 	return 0;
 }

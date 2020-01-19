@@ -23,12 +23,12 @@ int createSocket(void) {
     return sock;
 }
 
-int serverListen(int servSock) {
+int serverListen(int servSock, int port) {
     struct sockaddr_in servAddr;
 
     servAddr.sin_family = AF_INET;
 	servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	servAddr.sin_port = htons(PORT);
+	servAddr.sin_port = htons(port);
 
 	int rc = bind(servSock, (struct sockaddr*)&servAddr , sizeof(servAddr));
 
@@ -41,11 +41,11 @@ int serverListen(int servSock) {
     return rc;
 }
 
-int clientConnect(int sock, char* servHost) {
+int clientConnect(int sock, char* servHost, int port) {
     struct sockaddr_in servAddr;
 
     servAddr.sin_family = AF_INET;
-    servAddr.sin_port = htons(PORT);
+    servAddr.sin_port = htons(port);
     servAddr.sin_addr.s_addr = inet_addr(servHost);
 
     int rc = connect(sock, (struct sockaddr *) &servAddr, sizeof(servAddr));
@@ -58,10 +58,21 @@ int clientConnect(int sock, char* servHost) {
 int sendData(int destFd, void *data, uint32_t dataSize) {
     char buffer[BUFF_SIZE];
 
-    uint64_t nPackets = dataSize / BUFF_SIZE + (dataSize % BUFF_SIZE > 0);
+    uint32_t nPackets = dataSize / BUFF_SIZE + (dataSize % BUFF_SIZE > 0);
+    uint32_t dataLeft;
+    int m = dataSize % BUFF_SIZE;
 
-    for (int i = 0; i < nPackets; i++) {
-        memcpy(buffer, ((char*) data) + i * BUFF_SIZE, sizeof(buffer));
+    for (uint32_t i = 0; i < nPackets; i++) {
+        // deal with partial packet
+        // if (i == (nPackets - 1)) {
+        //     memcpy(buffer, ((char*) data) + i * BUFF_SIZE, dataSize % BUFF_SIZE);
+        //     write(destFd, buffer, BUFF_SIZE);
+        // } else {
+        // memcpy(buffer, ((char*) data) + i * BUFF_SIZE, sizeof(buffer));
+        // write(destFd, buffer, sizeof(buffer));
+
+        dataLeft = nPackets * BUFF_SIZE;
+        memcpy(buffer, ((char*) data) + i * BUFF_SIZE, dataLeft);
         write(destFd, buffer, sizeof(buffer));
     }
 
@@ -70,11 +81,20 @@ int sendData(int destFd, void *data, uint32_t dataSize) {
 
 int readData(int srcFd, void *data, uint32_t dataSize) {
     uint32_t bytesRead;
+    uint32_t bytesToRead = BUFF_SIZE;
     uint32_t dataTransffered = 0;
     uint8_t buffer[BUFF_SIZE];
 
     while (dataTransffered < dataSize) {
-        bytesRead = read(srcFd, buffer, sizeof(buffer));
+        if ((dataSize - dataTransffered) < BUFF_SIZE) {
+            bytesToRead = (dataSize - dataTransffered);
+        }
+        else {
+            bytesToRead = BUFF_SIZE;
+        }
+
+        bytesToRead = dataSize;
+        bytesRead = read(srcFd, buffer, bytesToRead);
 
         memcpy(((char*) data) + dataTransffered , buffer, bytesRead);
 

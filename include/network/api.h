@@ -10,6 +10,7 @@ typedef enum opcode opcode;
 struct Message {
     opcode op;
     // size of the requested ressource in bytes
+    // 0 means no ressource is to be expected
     uint64_t expectedSize;
 };
 

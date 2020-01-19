@@ -1,54 +1,90 @@
 #include <stdio.h>
-#include <getopt.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
 #include <netinet/in.h>
+#include <unistd.h>
 
 #include "camera.h"
 #include "image.h"
 #include "network.h"
 #include "api.h"
 
+static int socketServer;
+static int connFd;
 
-void daemon() {
-	int socketServer = createSocket();
-	int connFd;
+/**
+SIGINT interput handler
+*/
+void StopContCapture(int sig_id) {
+	printf("stoping continuous capture\n");
+	close(connFd);
+	close(socketServer);
+	captureUninit();
+}
 
-	serverListen(socketServer);
+void InstallSIGINTHandler() {
+	struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+	
+	sa.sa_handler = StopContCapture;
+
+	if (sigaction(SIGINT, &sa, 0) != 0) {
+		fprintf(stderr, "could not install SIGINT handler, continuous capture disabled");
+	}
+}
+
+
+void runDaemon(int port) {
+	InstallSIGINTHandler();
+
+	socketServer = createSocket();
+
+	serverListen(socketServer, port);
 
 	struct sockaddr cliAddr;
 	uint32_t cliAddrLen = sizeof(cliAddr);
 
 	Message msg;
 
+	printf("info: server listening on port %d\n", port);
+
 	for (;;) {
 		ACCEPT_CONN:
 		connFd = accept(socketServer, &cliAddr, &cliAddrLen);
+		printf("info: new client connected\n");
 
 		for (;;) {
 			readData(connFd, &msg, sizeof(Message));
 
 			switch (msg.op) {
 				case disconnect:
-					connFd = 0;
+					printf("info: client disconnecting\n");
+					close(connFd);
 					goto ACCEPT_CONN;
 					break;
 
 				case shutdownServ:
-                    connFd = 0;
+					printf("info: server shutdown\n");
+                    close(connFd);
+					// make sure to close the video device
+					captureUninit();
+					exit(EXIT_SUCCESS);
 					break;
 				
 				case readImg: {
-                    camOpt *co = malloc(sizeof(camOpt));
+					printf("info: image requested by client\n");
+                    camOpt co;
 
-                    readData(connFd, co, sizeof(camOpt));
+                    readData(connFd, &co, sizeof(camOpt));
 
-                    uint64_t imgSize = co->width * co->height * 3 * sizeof(uint8_t);
-                    uint8_t *rawImage = malloc(imgSize);
+                    int imgSize = co.width * co.height * 3 * sizeof(char);
+					printf("DEBUG %d, %u %u %s \n", imgSize, co.width * co.height, co.deviceName);
 
-                    capture(co, rawImage);
+                    char *rawImage = malloc(imgSize);
+
+                    capture(&co, rawImage);
                     
                     Message msgRep = {sendImg, imgSize};
 
@@ -59,9 +95,16 @@ void daemon() {
 
 					break;
                 }
-				
+
+				case syn: {
+					printf("info: client syn\n");
+					Message msgRep = {ack, 0};
+					sendData(connFd, &msgRep, sizeof(Message));
+					break;
+				}
+
 				default:
-					perror("unhandled operation code for server");
+					printf("error: unhandled operation %d code for server\n", msg.op);
 					break;
 			}
 		}
