@@ -60,9 +60,6 @@ long_options [] = {
 };
 
 
-
-
-
 int main(int argc, char **argv) {
     camOpt co = {
         .deviceName = "/dev/video0",
@@ -75,8 +72,6 @@ int main(int argc, char **argv) {
         .fps = DEFAULT_FPS,
         .continuous = false
     };
-
-    printf("DEV %u %u %s\n", co.height, co.width, co.deviceName);
 
     // NOLINTNEXTLINE(readability-magic-numbers)
     char *serverAddr;
@@ -132,20 +127,14 @@ int main(int argc, char **argv) {
 
 			case 'm':
 				co.iom = IO_METHOD_MMAP;
-				// fprintf(stderr, "You didn't compile for mmap support.\n");
-				// exit(EXIT_FAILURE);
 				break;
 
 			case 'r':
 				co.iom = IO_METHOD_READ;
-				// fprintf(stderr, "You didn't compile for read support.\n");
-				// exit(EXIT_FAILURE);
 				break;
 
 			case 'u':
 				co.iom = IO_METHOD_USERPTR;
-				// fprintf(stderr, "You didn't compile for userptr support.\n");
-				// exit(EXIT_FAILURE);
 				break;
 
 			case 'W':

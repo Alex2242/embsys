@@ -56,47 +56,43 @@ int clientConnect(int sock, char* servHost, int port) {
 }
 
 int sendData(int destFd, void *data, uint32_t dataSize) {
-    char buffer[BUFF_SIZE];
+    uint8_t buffer[BUFF_SIZE];
 
     uint32_t nPackets = dataSize / BUFF_SIZE + (dataSize % BUFF_SIZE > 0);
-    uint32_t dataLeft;
-    int m = dataSize % BUFF_SIZE;
+
+    uint32_t trailingData = dataSize % BUFF_SIZE;
 
     for (uint32_t i = 0; i < nPackets; i++) {
         // deal with partial packet
-        // if (i == (nPackets - 1)) {
-        //     memcpy(buffer, ((char*) data) + i * BUFF_SIZE, dataSize % BUFF_SIZE);
-        //     write(destFd, buffer, BUFF_SIZE);
-        // } else {
-        // memcpy(buffer, ((char*) data) + i * BUFF_SIZE, sizeof(buffer));
-        // write(destFd, buffer, sizeof(buffer));
-
-        dataLeft = nPackets * BUFF_SIZE;
-        memcpy(buffer, ((char*) data) + i * BUFF_SIZE, dataLeft);
-        write(destFd, buffer, sizeof(buffer));
+        if (i == (nPackets - 1)) {
+            memcpy(buffer, ((uint8_t*) data) + i * BUFF_SIZE, trailingData);
+            int bWrite = write(destFd, buffer, BUFF_SIZE);
+        } else {
+            memcpy(buffer, ((uint8_t*) data) + i * BUFF_SIZE, BUFF_SIZE);
+            write(destFd, buffer, BUFF_SIZE);
+        }
     }
 
     return 0;
 }
 
 int readData(int srcFd, void *data, uint32_t dataSize) {
-    uint32_t bytesRead;
-    uint32_t bytesToRead = BUFF_SIZE;
-    uint32_t dataTransffered = 0;
     uint8_t buffer[BUFF_SIZE];
 
+    uint32_t bytesRead;
+
+    uint32_t dataTransffered = 0;
+
     while (dataTransffered < dataSize) {
-        if ((dataSize - dataTransffered) < BUFF_SIZE) {
-            bytesToRead = (dataSize - dataTransffered);
+        bytesRead = read(srcFd, buffer, BUFF_SIZE);
+
+        if ((dataTransffered + bytesRead) > dataSize) {
+            int bytesLeft = dataSize - dataTransffered;
+            memcpy(((char*) data) + dataTransffered , buffer, bytesLeft);
         }
         else {
-            bytesToRead = BUFF_SIZE;
+            memcpy(((char*) data) + dataTransffered , buffer, bytesRead);
         }
-
-        bytesToRead = dataSize;
-        bytesRead = read(srcFd, buffer, bytesToRead);
-
-        memcpy(((char*) data) + dataTransffered , buffer, bytesRead);
 
         dataTransffered += bytesRead;
     } 

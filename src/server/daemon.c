@@ -78,9 +78,9 @@ void runDaemon(int port) {
                     camOpt co;
 
                     readData(connFd, &co, sizeof(camOpt));
+					co.deviceName = "/dev/video0";
 
                     int imgSize = co.width * co.height * 3 * sizeof(char);
-					printf("DEBUG %d, %u %u %s \n", imgSize, co.width * co.height, co.deviceName);
 
                     char *rawImage = malloc(imgSize);
 
