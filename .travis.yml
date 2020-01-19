@@ -24,5 +24,6 @@ deploy:
     file_glob: true
     file: 
         - build/x86/embsys-x86-$TRAVIS_TAG.tar.gz
+        - build/embsys-arm-$TRAVIS_TAG.tar.gz
     api_key:
         secure: "WXyEj4f8U/7eB60M7ZY40+GkqzfQ9JdkRAr5ii+W57f2Cgh7oZDiF6Y0Pka17hWQhkEXHlQtfCA1rq/dthVLKGl0Wj58+poUVrm4qVteEA0QaQlt0JfDXV99/TIj2XO5zIuivt483FkffTuhVGIHPin8XgCM4ME46Wzn1entzpAztJPNfHOQPMYcMxj2+qZLMSjzygrAu7AQ2KdM96tIgaIVgjjr8Oa7dBD3hNvjwZ03nYOmqSI9XHf49a54crrAh0MeYtox0X6vw6myPr4dPYEkgXhZa6jkom83S1CUNeQRDLxNGEf051dTA8eF7KYk3xGU+QQON2GA1BSDqD8qLJQkv05/NGdbtgOLpfvkZGHEWlo6HYI6LeKsXJo4rjJK1UujweFq1/HZbz7Deg5E9paT2XCVR3i+Nv38vcGxeVPs02pEefvm99CDAmdm0W5VwGghtt6omt8MjepiT2813FJNiDYUJrk2vVndlak4OtDy1nMgI8/79ReSww9wpqtWHz66jMaKUpsvxpA5op7UOKHrzm0YBFtlQdocRKTJUrrMzKHUnOybfjgk2UyE06bJTXxq9GiGLBSGNKU6077Pg/xJLIm6aku4h2x5QqbuNQcgIY47sRF2sfvu4jo7ABSK/NUnOpkrAMF8c1HWdqT/nFUysYOdEvGNGnuAQMIsUj8="
