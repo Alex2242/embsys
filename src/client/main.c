@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <assert.h>
 #include <unistd.h>
+#include <syslog.h>
 
 #include "camera.h"
 #include "image.h"
@@ -20,42 +21,34 @@
 */
 static void usage(FILE* fp, int argc, char** argv) {
 	fprintf(fp,
-		"Usage: %s [options]\n\n"
+		"Usage: \n"
+		"\tclient -a SERVER_ADDR [OPTION]...\n"
+		"\t\tconnect the server, handshake and disconnect\n"
 		"Options:\n"
-		"-d | --device name   Video device name [/dev/video0]\n"
-		"-a | --address		  The address of the server\n"
-		"-p | --port		  The port of the server\n"
-		"-h | --help          Print this message\n"
-		"-o | --output        Set JPEG output filename\n"
-		"-q | --quality       Set JPEG quality (0-100)\n"
-		"-m | --mmap          Use memory mapped buffers\n"
-		"-r | --read          Use read() calls\n"
-		"-u | --userptr       Use application allocated buffers\n"
-		"-W | --width         Set image width\n"
-		"-H | --height        Set image height\n"
-		"-c | --capture       Capture an image on the server\n"
-		"-v | --version       Print version\n"
-		"",
-		argv[0]);
+		"\t-p | --port PORT              The port of the server [21245]\n"
+		"\t-o | --output FILENAME        Set JPEG output filename [capture.jpg]\n"
+		"\t-q | --quality JPEG_QUALITY   Set JPEG quality (0-100) [70]\n"
+		"\t-W | --width WIDTH            Set image width [640]\n"
+		"\t-H | --height HEIGHT          Set image height [480]\n"
+		"\t-c | --capture                Capture an image on the server\n"
+		"\t-s | --shutdown               Shutdown server after transaction\n"
+		"\t-h | --help                   Print this message\n"
+		"");
 	}
 
-static const char short_options [] = "cp:a:d:ho:q:mruW:H:v";
+static const char short_options [] = "cp:a:ho:q:W:H:s";
 
 static const struct option
 long_options [] = {
 	{ "capture",	no_argument,		    NULL,		    'c' },
 	{ "address",	required_argument,		NULL,		    'a' },
 	{ "port",	    required_argument,		NULL,		    'p' },
-	{ "device",     required_argument,      NULL,           'd' },
 	{ "help",       no_argument,            NULL,           'h' },
 	{ "output",     required_argument,      NULL,           'o' },
 	{ "quality",    required_argument,      NULL,           'q' },
-	{ "mmap",       no_argument,            NULL,           'm' },
-	{ "read",       no_argument,            NULL,           'r' },
-	{ "userptr",    no_argument,            NULL,           'u' },
 	{ "width",      required_argument,      NULL,           'W' },
 	{ "height",     required_argument,      NULL,           'H' },
-	{ "version",	no_argument,		    NULL,		    'v' },
+	{ "shutdown",	no_argument,		    NULL,		    's' },
 	{ 0, 0, 0, 0 }
 };
 
@@ -64,23 +57,22 @@ int main(int argc, char **argv) {
     camOpt co = {
         .deviceName = "/dev/video0",
         .jpegFilename = "capture.jpg",
-        .jpegFilenamePart = "capture-",
         .iom = IO_METHOD_MMAP,
         .jpegQuality = DEFAULT_JQAL,
         .width = DEFAULT_WIDTH,
         .height = DEFAULT_HEIGHT,
-        .fps = DEFAULT_FPS,
-        .continuous = false
     };
 
-    // NOLINTNEXTLINE(readability-magic-numbers)
-    char *serverAddr;
+    char *serverAddr = NULL;
     bool requestImg = false;
     int port = PORT;
 
+	bool shutdownServer = false;
+
+	int c;
+
 	for (;;) {
 		int index;
-		int c = 0;
 
 		c = getopt_long(argc, argv, short_options, long_options, &index);
 
@@ -102,12 +94,12 @@ int main(int argc, char **argv) {
                 requestImg = true;
                 break;
 
+            case 's':
+                shutdownServer = true;
+                break;
+
 			case 'p':
 				port = atoi(optarg);
-				break;
-
-			case 'd':
-				co.deviceName = optarg;
 				break;
 
 			case 'h':
@@ -125,18 +117,6 @@ int main(int argc, char **argv) {
 				co.jpegQuality = atoi(optarg);
 				break;
 
-			case 'm':
-				co.iom = IO_METHOD_MMAP;
-				break;
-
-			case 'r':
-				co.iom = IO_METHOD_READ;
-				break;
-
-			case 'u':
-				co.iom = IO_METHOD_USERPTR;
-				break;
-
 			case 'W':
 				// set width
 				co.width = atoi(optarg);
@@ -147,16 +127,6 @@ int main(int argc, char **argv) {
 				co.height = atoi(optarg);
 				break;
 				
-			case 'I':
-				// set fps
-				co.fps = atoi(optarg);
-				break;
-				
-			case 'v':
-				printf("Version: %s\n", VERSION);
-				exit(EXIT_SUCCESS);
-				break;
-
 			default:
 				usage(stderr, argc, argv);
 				exit(EXIT_FAILURE);
@@ -164,14 +134,18 @@ int main(int argc, char **argv) {
 	}
 
     if (serverAddr == NULL) {
+		usage(stderr, argc, argv);
         exit(EXIT_SUCCESS);
     }
 
+    syslog(LOG_INFO, "client connecting to %s on port %d\n", serverAddr, port);
+
 	int sockFd = createSocket();
-    printf("info: client connecting to %s on port %d\n", serverAddr, port);
     clientConnect(sockFd, serverAddr, port);
 
-    printf("info: connected, sending syn/ack\n");
+    syslog(LOG_INFO, "client connected to %s on port %d\n", serverAddr, port);
+    syslog(LOG_INFO, "sending syn/ack\n");
+	// syn
     Message msa = {syn, 0};
     sendData(sockFd, &msa, sizeof(Message));
 
@@ -179,11 +153,12 @@ int main(int argc, char **argv) {
     Message msaRep;
     readData(sockFd, &msaRep, sizeof(Message));
 
+	// confirm that the received message is ack
     assert(msaRep.op == ack);
-    printf("info: server responded to syn/ack\n");
+    syslog(LOG_INFO, "server responded to syn/ack\n");
 
     if (requestImg) {
-        printf("info: requesting capture from server\n");
+        syslog(LOG_INFO, "requesting capture from server\n");
         Message mi = {readImg, sizeof(camOpt)};
         Message mir;
 
@@ -203,11 +178,17 @@ int main(int argc, char **argv) {
 
         free(rawImage);
     }
-
-    printf("info: shuting down server\n");
-
-    Message ms = {shutdownServ, 0};
-    sendData(sockFd, &ms, sizeof(Message));
+	
+	if (shutdownServer) {
+		syslog(LOG_INFO, "shuting down server\n");
+		Message ms = {shutdownServ, 0};
+		sendData(sockFd, &ms, sizeof(Message));
+	}
+	else {
+		syslog(LOG_INFO, "disconnecting from server\n");
+		Message ms = {disconnect, 0};
+		sendData(sockFd, &ms, sizeof(Message));
+	}
 
     close(sockFd);
 

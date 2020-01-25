@@ -421,20 +421,6 @@ void deviceInit() {
 		fprintf(stderr,"Image height set to %i by device %s.\n", co->height, co->deviceName);
 	}
 	
-	/* If the user has set the co->fps to -1, don't try to set the frame interval */
-	if (co->fps != -1) {
-		CLEAR(frameint);
-			
-		/* Attempt to set the frame interval. */
-		frameint.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		frameint.parm.capture.timeperframe.numerator = 1;
-		frameint.parm.capture.timeperframe.denominator = co->fps;
-
-		if (-1 == xioctl(fd, VIDIOC_S_PARM, &frameint)) {
-			fprintf(stderr,"Unable to set frame interval.\n");
-		}
-	}
-
 	/* Buggy driver paranoia. */
 	min = fmt.fmt.pix.width * 2;
 	

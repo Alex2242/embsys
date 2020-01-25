@@ -26,13 +26,10 @@ struct buffer {
 struct camOpt {
     char *deviceName;
     char *jpegFilename;
-    char *jpegFilenamePart;
     io_method iom;
     int jpegQuality;
     uint32_t width;
     uint32_t height;
-    uint32_t fps;
-    bool continuous;
 };
 
 typedef struct camOpt camOpt;

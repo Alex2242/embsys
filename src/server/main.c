@@ -5,6 +5,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include <netinet/in.h>
+#include <syslog.h>
 
 #include "camera.h"
 #include "image.h"
@@ -13,8 +14,7 @@
 
 
 // declare prototype of daemon which has no header (internal)
-void runDaemon(int port);
-
+void runDaemon(int port, camOpt co);
 
 
 /**
@@ -22,31 +22,32 @@ void runDaemon(int port);
 */
 static void usage(FILE* fp, int argc, char** argv) {
 	fprintf(fp,
-		"Usage: %s [options]\n\n"
+		"Usage: server (-c | -s) [OPTION]...\n"
+		"\tserver -s [OPTION]...\n"
+		"\t\tstart the server and wait for connections from client\n"
+		"\tserver -c [OPTION]...\n"
+		"\t\tCapture an image on the server\n\n"
 		"Options:\n"
-		"-d | --device name   Video device name [/dev/video0]\n"
-		"-s | --server		  Run the video capture daemon\n"
-		"-p | --port		  Port for clients to connect\n"
-		"-h | --help          Print this message\n"
-		"-o | --output        Set JPEG output filename\n"
-		"-q | --quality       Set JPEG quality (0-100)\n"
-		"-m | --mmap          Use memory mapped buffers\n"
-		"-r | --read          Use read() calls\n"
-		"-u | --userptr       Use application allocated buffers\n"
-		"-W | --width         Set image width\n"
-		"-H | --height        Set image height\n"
-		"-I | --interval      Set frame interval (fps) (-1 to skip)\n"
-		"-c | --continuous    Do continous capture, stop with SIGINT.\n"
-		"-v | --version       Print version\n"
-		"",
-		argv[0]);
+		"\t-p | --port  PORT             Port for clients to connect [21245]\n"
+		"\t-d | --device NAME            Video device name [/dev/video0]\n"
+		"\t-m | --mmap                   Use memory mapped buffers [default]\n"
+		"\t-r | --read                   Use read() calls\n"
+		"\t-u | --userptr                Use application allocated buffers\n"
+		"\t-p | --port PORT              The port of the server [21245]\n"
+		"\t-o | --output FILENAME        Set JPEG output filename [capture.jpg]\n"
+		"\t-q | --quality JPEG_QUALITY   Set JPEG quality (0-100) [70]\n"
+		"\t-W | --width WIDTH            Set image width [640]\n"
+		"\t-H | --height HEIGHT          Set image height [480]\n"
+		"\t-h | --help                   Print this message\n"
+		"");
 	}
 
-static const char short_options [] = "sp:d:ho:q:mruW:H:I:vc";
+static const char short_options [] = "scp:d:ho:q:mruW:H:";
 
 static const struct option
 long_options [] = {
 	{ "device",     required_argument,      NULL,           'd' },
+	{ "capture",	no_argument,		    NULL,		    'c' },
 	{ "help",       no_argument,            NULL,           'h' },
 	{ "server",     no_argument,            NULL,           's' },
 	{ "port",     	required_argument,		NULL,           'p' },
@@ -57,34 +58,30 @@ long_options [] = {
 	{ "userptr",    no_argument,            NULL,           'u' },
 	{ "width",      required_argument,      NULL,           'W' },
 	{ "height",     required_argument,      NULL,           'H' },
-	{ "interval",   required_argument,      NULL,           'I' },
-	{ "version",	no_argument,		NULL,		'v' },
-	{ "continuous",	no_argument,		NULL,		'c' },
 	{ 0, 0, 0, 0 }
 };
 
 
 
 int main(int argc, char **argv) {
-    // camOpt co;
+	// default camera options
     camOpt co = {
         .deviceName = "/dev/video0",
         .jpegFilename = "capture.jpg",
-        .jpegFilenamePart = "capture-",
         .iom = IO_METHOD_MMAP,
         .jpegQuality = DEFAULT_JQAL,
         .width = DEFAULT_WIDTH,
         .height = DEFAULT_HEIGHT,
-        .fps = DEFAULT_FPS,
-        .continuous = false
     };
 
 	bool runServer = false;
+	bool captureLocal = false;
 	int port = PORT;
+
+	int c = 0;
 
 	for (;;) {
 		int index;
-		int c = 0;
 
 		c = getopt_long(argc, argv, short_options, long_options, &index);
 
@@ -114,6 +111,10 @@ int main(int argc, char **argv) {
 				// print help
 				usage(stdout, argc, argv);
 				exit(EXIT_SUCCESS);
+
+			case 'c':
+				captureLocal = true;
+				break;
 
 			case 'o':
 				// set jpeg filename
@@ -152,22 +153,6 @@ int main(int argc, char **argv) {
 				// set height
 				co.height = atoi(optarg);
 				break;
-				
-			case 'I':
-				// set fps
-				co.fps = atoi(optarg);
-				break;
-
-			case 'c':
-				// set flag for continuous capture, interuptible by sigint
-				co.continuous = true;
-				// InstallSIGINTHandler();
-				break;
-				
-			case 'v':
-				printf("Version: %s\n", VERSION);
-				exit(EXIT_SUCCESS);
-				break;
 
 			default:
 				usage(stderr, argc, argv);
@@ -175,9 +160,25 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	if (runServer) {
-		printf("info: starting server");
-		runDaemon(port);	
+	// incorrect usage
+	if (runServer && captureLocal) {
+		usage(stderr, argc, argv);
+		exit(EXIT_FAILURE);
+	}
+	else if (runServer) {
+		syslog(LOG_INFO, "starting server");
+		runDaemon(port, co);	
+	}
+	else if (captureLocal) {
+		syslog(LOG_INFO, "capturing image on the server");
+
+		int imgSize = co.width * co.height * 3 * sizeof(char);
+
+		char *rawImage = malloc(imgSize);
+
+		capture(&co, rawImage);
+
+        jpegWrite(rawImage, co);
 	}
 
 	return 0;

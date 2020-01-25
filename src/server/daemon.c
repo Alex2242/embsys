@@ -5,6 +5,7 @@
 #include <inttypes.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <syslog.h>
 
 #include "camera.h"
 #include "image.h"
@@ -36,7 +37,7 @@ void InstallSIGINTHandler() {
 }
 
 
-void runDaemon(int port) {
+void runDaemon(int port, camOpt co) {
 	InstallSIGINTHandler();
 
 	socketServer = createSocket();
@@ -48,25 +49,25 @@ void runDaemon(int port) {
 
 	Message msg;
 
-	printf("info: server listening on port %d\n", port);
+	syslog(LOG_INFO, "server listening on port %d\n", port);
 
 	for (;;) {
 		ACCEPT_CONN:
 		connFd = accept(socketServer, &cliAddr, &cliAddrLen);
-		printf("info: new client connected\n");
+		syslog(LOG_INFO, "new client connected\n");
 
 		for (;;) {
 			readData(connFd, &msg, sizeof(Message));
 
 			switch (msg.op) {
 				case disconnect:
-					printf("info: client disconnecting\n");
+					syslog(LOG_INFO, "client disconnecting\n");
 					close(connFd);
 					goto ACCEPT_CONN;
 					break;
 
 				case shutdownServ:
-					printf("info: server shutdown\n");
+					syslog(LOG_INFO, "server shutdown\n");
                     close(connFd);
 					// make sure to close the video device
 					captureUninit();
@@ -74,21 +75,28 @@ void runDaemon(int port) {
 					break;
 				
 				case readImg: {
-					printf("info: image requested by client\n");
-                    camOpt co;
+					syslog(LOG_INFO, "image requested by client\n");
 
-                    readData(connFd, &co, sizeof(camOpt));
-					co.deviceName = "/dev/video0";
+                    camOpt coIn;
 
-                    int imgSize = co.width * co.height * 3 * sizeof(char);
+					// read client's camera options
+                    readData(connFd, &coIn, sizeof(camOpt));
+
+					// copy the relevant camera options for capture
+					co.width = coIn.width;
+					co.height = coIn.height;
+
+                    int imgSize = co.width * co.height * 3 * sizeof(uint8_t);
 
                     char *rawImage = malloc(imgSize);
 
                     capture(&co, rawImage);
                     
+					// notify client of incoming image size
                     Message msgRep = {sendImg, imgSize};
 
                     sendData(connFd, &msgRep, sizeof(Message));
+					// send raw image
                     sendData(connFd, rawImage, imgSize);
 
                     free(rawImage);
@@ -97,14 +105,14 @@ void runDaemon(int port) {
                 }
 
 				case syn: {
-					printf("info: client syn\n");
+					syslog(LOG_INFO, "client syn\n");
 					Message msgRep = {ack, 0};
 					sendData(connFd, &msgRep, sizeof(Message));
 					break;
 				}
 
 				default:
-					printf("error: unhandled operation %d code for server\n", msg.op);
+					syslog(LOG_ERR, "unhandled operation %d code for server\n", msg.op);
 					break;
 			}
 		}
