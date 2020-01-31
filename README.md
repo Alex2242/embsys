@@ -23,21 +23,37 @@ to fix this.
 
 ## Release
 
-Binaries can be found in the [release section](https://github.com/Alex2242/embsys/releases)
-for both x86 and arm.
-
+Binaries can be found in the [release section](https://github.com/Alex2242/embsys/releases) for both x86 and arm.
 
 ## Usage
 
 ### Server
 
 The server needs to be started on the machine which has a camera.
-The options available for the server are described in `server -h`.
+The options available for the server are described in `server -h`:
 
 A simple usage example would be:
 
 ```bash
-./server -s -p [port]
+Usage: server (-c | -s) [OPTION]...
+        server -s [OPTION]...
+                start the server and wait for connections from client
+        server -c [OPTION]...
+                Capture an image on the server
+
+Options:
+        -p | --port  PORT             Port for clients to connect [21245]
+        -d | --device NAME            Video device name [/dev/video0]
+        -m | --mmap                   Use memory mapped buffers [default]
+        -r | --read                   Use read() calls
+        -u | --userptr                Use application allocated buffers
+        -p | --port PORT              The port of the server [21245]
+        -o | --output FILENAME        Set JPEG output filename [capture.jpg]
+        -q | --quality JPEG_QUALITY   Set JPEG quality (0-100) [70]
+        -W | --width WIDTH            Set image width [640]
+        -H | --height HEIGHT          Set image height [480]
+        -S | --syslog                 Use system logger instead of stdout for logging
+        -h | --help                   Print this message
 ```
 
 Which starts a the server and awaits connections from clients.
@@ -45,19 +61,27 @@ Which starts a the server and awaits connections from clients.
 ### Client
 
 The client needs to be able to access the server using ipv4 on the designated port.
-The options available for the server are described in `client -h`.
-
-A simple usage example would be:
+The options available for the server are described in `client -h`:
 
 ```bash
-./client -c -o [output.jpg] -a [server-ipv4-addr] -p [server-port]
+Usage: 
+        client -a SERVER_ADDR [OPTION]...
+                connect the server, handshake and disconnect
+Options:
+        -p | --port PORT              The port of the server [21245]
+        -o | --output FILENAME        Set JPEG output filename [capture.jpg]
+        -q | --quality JPEG_QUALITY   Set JPEG quality (0-100) [70]
+        -W | --width WIDTH            Set image width [640]
+        -H | --height HEIGHT          Set image height [480]
+        -c | --capture                Capture an image on the server
+        -s | --shutdown               Shutdown server after transaction
+        -S | --syslog                 Use system logger instead of stdout for logging
+        -h | --help                   Print this message
 ```
-
-The client requests an image from the server and saves it locally.
 
 ## Authors
 
-Alexandre Degurse
-Julien Khalile
-Henry Stoven
-Driss Tayebi
+- Alexandre Degurse
+- Julien Khalile
+- Henry Stoven
+- Driss Tayebi
