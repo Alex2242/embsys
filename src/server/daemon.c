@@ -24,6 +24,7 @@ void StopContCapture(int sig_id) {
 	close(connFd);
 	close(socketServer);
 	captureUninit();
+	exit(EXIT_SUCCESS);
 }
 
 void InstallSIGINTHandler() {

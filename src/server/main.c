@@ -39,11 +39,12 @@ static void usage(FILE* fp, int argc, char** argv) {
 		"\t-q | --quality JPEG_QUALITY   Set JPEG quality (0-100) [70]\n"
 		"\t-W | --width WIDTH            Set image width [640]\n"
 		"\t-H | --height HEIGHT          Set image height [480]\n"
+		"\t-S | --syslog                 Use system logger instead of stdout for logging\n"
 		"\t-h | --help                   Print this message\n"
 		"");
 	}
 
-static const char short_options [] = "scp:d:ho:q:mruW:H:";
+static const char short_options [] = "Sscp:d:ho:q:mruW:H:";
 
 static const struct option
 long_options [] = {
@@ -59,6 +60,7 @@ long_options [] = {
 	{ "userptr",    no_argument,            NULL,           'u' },
 	{ "width",      required_argument,      NULL,           'W' },
 	{ "height",     required_argument,      NULL,           'H' },
+	{ "syslog",    no_argument,            NULL,           'S' },
 	{ 0, 0, 0, 0 }
 };
 
@@ -109,7 +111,6 @@ int main(int argc, char **argv) {
 				break;
 
 			case 'h':
-				// print help
 				usage(stdout, argc, argv);
 				exit(EXIT_SUCCESS);
 
@@ -118,41 +119,35 @@ int main(int argc, char **argv) {
 				break;
 
 			case 'o':
-				// set jpeg filename
 				co.jpegFilename = optarg;
 				break;
 
 			case 'q':
-				// set jpeg quality
 				co.jpegQuality = atoi(optarg);
 				break;
 
 			case 'm':
 				co.iom = IO_METHOD_MMAP;
-				// fprintf(stderr, "You didn't compile for mmap support.\n");
-				// exit(EXIT_FAILURE);
 				break;
 
 			case 'r':
 				co.iom = IO_METHOD_READ;
-				// fprintf(stderr, "You didn't compile for read support.\n");
-				// exit(EXIT_FAILURE);
 				break;
 
 			case 'u':
 				co.iom = IO_METHOD_USERPTR;
-				// fprintf(stderr, "You didn't compile for userptr support.\n");
-				// exit(EXIT_FAILURE);
 				break;
 
 			case 'W':
-				// set width
 				co.width = atoi(optarg);
 				break;
 
 			case 'H':
-				// set height
 				co.height = atoi(optarg);
+				break;
+
+			case 'S':
+				setLogOutput(SYSLOG);
 				break;
 
 			default:
