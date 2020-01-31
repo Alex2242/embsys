@@ -32,8 +32,6 @@ Binaries can be found in the [release section](https://github.com/Alex2242/embsy
 The server needs to be started on the machine which has a camera.
 The options available for the server are described in `server -h`:
 
-A simple usage example would be:
-
 ```bash
 Usage: server (-c | -s) [OPTION]...
         server -s [OPTION]...
