@@ -60,7 +60,7 @@ long_options [] = {
 	{ "userptr",    no_argument,            NULL,           'u' },
 	{ "width",      required_argument,      NULL,           'W' },
 	{ "height",     required_argument,      NULL,           'H' },
-	{ "syslog",    no_argument,            NULL,           'S' },
+	{ "syslog",     no_argument,            NULL,           'S' },
 	{ 0, 0, 0, 0 }
 };
 

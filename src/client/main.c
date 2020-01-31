@@ -33,11 +33,12 @@ static void usage(FILE* fp, int argc, char** argv) {
 		"\t-H | --height HEIGHT          Set image height [480]\n"
 		"\t-c | --capture                Capture an image on the server\n"
 		"\t-s | --shutdown               Shutdown server after transaction\n"
+		"\t-S | --syslog                 Use system logger instead of stdout for logging\n"
 		"\t-h | --help                   Print this message\n"
 		"");
 	}
 
-static const char short_options [] = "cp:a:ho:q:W:H:s";
+static const char short_options [] = "Scp:a:ho:q:W:H:s";
 
 static const struct option
 long_options [] = {
@@ -50,6 +51,7 @@ long_options [] = {
 	{ "width",      required_argument,      NULL,           'W' },
 	{ "height",     required_argument,      NULL,           'H' },
 	{ "shutdown",	no_argument,		    NULL,		    's' },
+	{ "syslog",     no_argument,            NULL,           'S' },
 	{ 0, 0, 0, 0 }
 };
 
@@ -104,30 +106,29 @@ int main(int argc, char **argv) {
 				break;
 
 			case 'h':
-				// print help
 				usage(stdout, argc, argv);
 				exit(EXIT_SUCCESS);
 
 			case 'o':
-				// set jpeg filename
 				co.jpegFilename = optarg;
 				break;
 
 			case 'q':
-				// set jpeg quality
 				co.jpegQuality = atoi(optarg);
 				break;
 
 			case 'W':
-				// set width
 				co.width = atoi(optarg);
 				break;
 
 			case 'H':
-				// set height
 				co.height = atoi(optarg);
 				break;
-				
+
+			case 'S':
+				setLogOutput(SYSLOG);
+				break;
+
 			default:
 				usage(stderr, argc, argv);
 				exit(EXIT_FAILURE);
@@ -141,15 +142,15 @@ int main(int argc, char **argv) {
 
 	//NOLINTNEXTLINE(readability-magic-numbers)
 	char logMessage[128];
-	snprintf(logMessage, sizeof(logMessage), "client connecting to %s on port %d\n", serverAddr, port);
+	snprintf(logMessage, sizeof(logMessage), "client connecting to %s on port %d", serverAddr, port);
     logging(LOG_INFO, logMessage);
 
 	int sockFd = createSocket();
     clientConnect(sockFd, serverAddr, port);
 
-	snprintf(logMessage, sizeof(logMessage), "client connected to %s on port %d\n", serverAddr, port);
+	snprintf(logMessage, sizeof(logMessage), "client connected to %s on port %d", serverAddr, port);
     logging(LOG_INFO, logMessage);
-    logging(LOG_INFO, "sending syn/ack\n");
+    logging(LOG_INFO, "sending syn/ack");
 	// syn
     Message msa = {syn, 0};
     sendData(sockFd, &msa, sizeof(Message));
@@ -160,10 +161,10 @@ int main(int argc, char **argv) {
 
 	// confirm that the received message is ack
     assert(msaRep.op == ack);
-    logging(LOG_INFO, "server responded to syn/ack\n");
+    logging(LOG_INFO, "server responded to syn/ack");
 
     if (requestImg) {
-        logging(LOG_INFO, "requesting capture from server\n");
+        logging(LOG_INFO, "requesting capture from server");
         Message mi = {readImg, sizeof(camOpt)};
         Message mir;
 
@@ -185,12 +186,12 @@ int main(int argc, char **argv) {
     }
 	
 	if (shutdownServer) {
-		logging(LOG_INFO, "shuting down server\n");
+		logging(LOG_INFO, "shuting down server");
 		Message ms = {shutdownServ, 0};
 		sendData(sockFd, &ms, sizeof(Message));
 	}
 	else {
-		logging(LOG_INFO, "disconnecting from server\n");
+		logging(LOG_INFO, "disconnecting from server");
 		Message ms = {disconnect, 0};
 		sendData(sockFd, &ms, sizeof(Message));
 	}

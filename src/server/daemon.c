@@ -20,7 +20,7 @@ static int connFd;
 SIGINT interput handler
 */
 void StopContCapture(int sig_id) {
-	printf("stoping continuous capture\n");
+	logging(LOG_INFO, "stoping continuous capture");
 	close(connFd);
 	close(socketServer);
 	captureUninit();
@@ -53,26 +53,26 @@ void runDaemon(int port, camOpt co) {
 
 	//NOLINTNEXTLINE(readability-magic-numbers)
 	char logMessage[128];
-	snprintf(logMessage, sizeof(logMessage),"server listening on port %d\n", port);
+	snprintf(logMessage, sizeof(logMessage),"server listening on port %d", port);
 	logging(LOG_INFO, logMessage);
 
 	for (;;) {
 		ACCEPT_CONN:
 		connFd = accept(socketServer, &cliAddr, &cliAddrLen);
-		logging(LOG_INFO, "new client connected\n");
+		logging(LOG_INFO, "new client connected");
 
 		for (;;) {
 			readData(connFd, &msg, sizeof(Message));
 
 			switch (msg.op) {
 				case disconnect:
-					logging(LOG_INFO, "client disconnecting\n");
+					logging(LOG_INFO, "client disconnecting");
 					close(connFd);
 					goto ACCEPT_CONN;
 					break;
 
 				case shutdownServ:
-					logging(LOG_INFO, "server shutdown\n");
+					logging(LOG_INFO, "server shutdown");
                     close(connFd);
 					// make sure to close the video device
 					captureUninit();
@@ -80,7 +80,7 @@ void runDaemon(int port, camOpt co) {
 					break;
 				
 				case readImg: {
-					logging(LOG_INFO, "image requested by client\n");
+					logging(LOG_INFO, "image requested by client");
 
                     camOpt coIn;
 
@@ -110,14 +110,14 @@ void runDaemon(int port, camOpt co) {
                 }
 
 				case syn: {
-					logging(LOG_INFO, "client syn\n");
+					logging(LOG_INFO, "client syn");
 					Message msgRep = {ack, 0};
 					sendData(connFd, &msgRep, sizeof(Message));
 					break;
 				}
 
 				default:
-					snprintf(logMessage, sizeof(logMessage),  "unhandled operation %d code for server\n", msg.op);
+					snprintf(logMessage, sizeof(logMessage),  "unhandled operation %d code for server", msg.op);
 					logging(LOG_ERR, logMessage);
 					break;
 			}
