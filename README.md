@@ -53,6 +53,7 @@ Options:
         -W | --width WIDTH            Set image width [640]
         -H | --height HEIGHT          Set image height [480]
         -S | --syslog                 Use system logger instead of stdout for logging
+        -l | --led GPIO_NUM           Use a led to signal that the server is activated
         -h | --help                   Print this message
 ```
 

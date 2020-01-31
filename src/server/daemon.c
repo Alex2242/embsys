@@ -12,6 +12,7 @@
 #include "image.h"
 #include "network.h"
 #include "api.h"
+#include "led.h"
 
 static int socketServer;
 static int connFd;
@@ -24,6 +25,7 @@ void StopContCapture(int sig_id) {
 	close(connFd);
 	close(socketServer);
 	captureUninit();
+	disableGpio();
 	exit(EXIT_SUCCESS);
 }
 

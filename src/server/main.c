@@ -5,13 +5,14 @@
 #include <string.h>
 #include <inttypes.h>
 #include <netinet/in.h>
-#include <utils.h>
 #include <syslog.h>
 
+#include "utils.h"
 #include "camera.h"
 #include "image.h"
 #include "network.h"
 #include "api.h"
+#include "led.h"
 
 
 // declare prototype of daemon which has no header (internal)
@@ -40,11 +41,12 @@ static void usage(FILE* fp, int argc, char** argv) {
 		"\t-W | --width WIDTH            Set image width [640]\n"
 		"\t-H | --height HEIGHT          Set image height [480]\n"
 		"\t-S | --syslog                 Use system logger instead of stdout for logging\n"
+		"\t-l | --led GPIO_NUM           Use a led to signal that the server is activated\n"
 		"\t-h | --help                   Print this message\n"
 		"");
 	}
 
-static const char short_options [] = "Sscp:d:ho:q:mruW:H:";
+static const char short_options [] = "l:Sscp:d:ho:q:mruW:H:";
 
 static const struct option
 long_options [] = {
@@ -61,6 +63,7 @@ long_options [] = {
 	{ "width",      required_argument,      NULL,           'W' },
 	{ "height",     required_argument,      NULL,           'H' },
 	{ "syslog",     no_argument,            NULL,           'S' },
+	{ "led",        required_argument,      NULL,           'l' },
 	{ 0, 0, 0, 0 }
 };
 
@@ -79,6 +82,8 @@ int main(int argc, char **argv) {
 
 	bool runServer = false;
 	bool captureLocal = false;
+	bool useLed = false;
+	uint8_t ledPin = 0;
 	int port = PORT;
 
 	int c = 0;
@@ -150,6 +155,11 @@ int main(int argc, char **argv) {
 				setLogOutput(SYSLOG);
 				break;
 
+			case 'l':
+				ledPin = atoi(optarg);
+				useLed = true;
+				break;
+
 			default:
 				usage(stderr, argc, argv);
 				exit(EXIT_FAILURE);
@@ -163,7 +173,15 @@ int main(int argc, char **argv) {
 	}
 	else if (runServer) {
 		logging(LOG_INFO, "starting server");
-		runDaemon(port, co);	
+		
+		if (useLed) {
+			useGpio(ledPin);
+			flipLed();
+		}
+
+		runDaemon(port, co);
+
+		disableGpio();
 	}
 	else if (captureLocal) {
 		logging(LOG_INFO, "capturing image on the server");
