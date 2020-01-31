@@ -5,6 +5,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include <netinet/in.h>
+#include <utils.h>
 #include <syslog.h>
 
 #include "camera.h"
@@ -166,11 +167,11 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	}
 	else if (runServer) {
-		syslog(LOG_INFO, "starting server");
+		logging(LOG_INFO, "starting server");
 		runDaemon(port, co);	
 	}
 	else if (captureLocal) {
-		syslog(LOG_INFO, "capturing image on the server");
+		logging(LOG_INFO, "capturing image on the server");
 
 		int imgSize = co.width * co.height * 3 * sizeof(char);
 

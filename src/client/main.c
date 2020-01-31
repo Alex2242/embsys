@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <syslog.h>
+#include <utils.h>
 
 #include "camera.h"
 #include "image.h"
@@ -138,13 +139,17 @@ int main(int argc, char **argv) {
         exit(EXIT_SUCCESS);
     }
 
-    syslog(LOG_INFO, "client connecting to %s on port %d\n", serverAddr, port);
+	//NOLINTNEXTLINE(readability-magic-numbers)
+	char logMessage[128];
+	snprintf(logMessage, sizeof(logMessage), "client connecting to %s on port %d\n", serverAddr, port);
+    logging(LOG_INFO, logMessage);
 
 	int sockFd = createSocket();
     clientConnect(sockFd, serverAddr, port);
 
-    syslog(LOG_INFO, "client connected to %s on port %d\n", serverAddr, port);
-    syslog(LOG_INFO, "sending syn/ack\n");
+	snprintf(logMessage, sizeof(logMessage), "client connected to %s on port %d\n", serverAddr, port);
+    logging(LOG_INFO, logMessage);
+    logging(LOG_INFO, "sending syn/ack\n");
 	// syn
     Message msa = {syn, 0};
     sendData(sockFd, &msa, sizeof(Message));
@@ -155,10 +160,10 @@ int main(int argc, char **argv) {
 
 	// confirm that the received message is ack
     assert(msaRep.op == ack);
-    syslog(LOG_INFO, "server responded to syn/ack\n");
+    logging(LOG_INFO, "server responded to syn/ack\n");
 
     if (requestImg) {
-        syslog(LOG_INFO, "requesting capture from server\n");
+        logging(LOG_INFO, "requesting capture from server\n");
         Message mi = {readImg, sizeof(camOpt)};
         Message mir;
 
@@ -180,12 +185,12 @@ int main(int argc, char **argv) {
     }
 	
 	if (shutdownServer) {
-		syslog(LOG_INFO, "shuting down server\n");
+		logging(LOG_INFO, "shuting down server\n");
 		Message ms = {shutdownServ, 0};
 		sendData(sockFd, &ms, sizeof(Message));
 	}
 	else {
-		syslog(LOG_INFO, "disconnecting from server\n");
+		logging(LOG_INFO, "disconnecting from server\n");
 		Message ms = {disconnect, 0};
 		sendData(sockFd, &ms, sizeof(Message));
 	}

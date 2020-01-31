@@ -6,6 +6,7 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <syslog.h>
+#include <utils.h>
 
 #include "camera.h"
 #include "image.h"
@@ -49,25 +50,28 @@ void runDaemon(int port, camOpt co) {
 
 	Message msg;
 
-	syslog(LOG_INFO, "server listening on port %d\n", port);
+	//NOLINTNEXTLINE(readability-magic-numbers)
+	char logMessage[128];
+	snprintf(logMessage, sizeof(logMessage),"server listening on port %d\n", port);
+	logging(LOG_INFO, logMessage);
 
 	for (;;) {
 		ACCEPT_CONN:
 		connFd = accept(socketServer, &cliAddr, &cliAddrLen);
-		syslog(LOG_INFO, "new client connected\n");
+		logging(LOG_INFO, "new client connected\n");
 
 		for (;;) {
 			readData(connFd, &msg, sizeof(Message));
 
 			switch (msg.op) {
 				case disconnect:
-					syslog(LOG_INFO, "client disconnecting\n");
+					logging(LOG_INFO, "client disconnecting\n");
 					close(connFd);
 					goto ACCEPT_CONN;
 					break;
 
 				case shutdownServ:
-					syslog(LOG_INFO, "server shutdown\n");
+					logging(LOG_INFO, "server shutdown\n");
                     close(connFd);
 					// make sure to close the video device
 					captureUninit();
@@ -75,7 +79,7 @@ void runDaemon(int port, camOpt co) {
 					break;
 				
 				case readImg: {
-					syslog(LOG_INFO, "image requested by client\n");
+					logging(LOG_INFO, "image requested by client\n");
 
                     camOpt coIn;
 
@@ -105,14 +109,15 @@ void runDaemon(int port, camOpt co) {
                 }
 
 				case syn: {
-					syslog(LOG_INFO, "client syn\n");
+					logging(LOG_INFO, "client syn\n");
 					Message msgRep = {ack, 0};
 					sendData(connFd, &msgRep, sizeof(Message));
 					break;
 				}
 
 				default:
-					syslog(LOG_ERR, "unhandled operation %d code for server\n", msg.op);
+					snprintf(logMessage, sizeof(logMessage),  "unhandled operation %d code for server\n", msg.op);
+					logging(LOG_ERR, logMessage);
 					break;
 			}
 		}
